@@ -235,6 +235,28 @@
         .toast.show { opacity: 1; }
         .dark-mode .toast { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
         
+
+        /* ===== REAL-TIME ADVISOR ===== */
+        .advisor-tip { background: var(--card-bg); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: var(--radius-sm); padding: 0.85rem 0.95rem; margin-bottom: 0.7rem; box-shadow: var(--shadow-sm); }
+        .advisor-tip.urgent { border-left-color: var(--danger); background: var(--overdue-bg); }
+        .advisor-tip.success { border-left-color: var(--success); }
+        .advisor-tip.info { border-left-color: #3B82F6; }
+        .advisor-tip.warn { border-left-color: var(--warning); }
+        .advisor-tip .tip-head { display: flex; align-items: center; gap: 0.45rem; font-size: 0.82rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
+        .advisor-tip .tip-head .tip-icon { font-size: 1rem; }
+        .advisor-tip .tip-body { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; }
+        .advisor-tip .tip-body strong { color: var(--text); }
+        .advisor-pulse { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.68rem; color: var(--success); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .advisor-pulse .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 1.4s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(0.85);} }
+        .advisor-score { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1rem; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: var(--radius-sm); margin-bottom: 0.8rem; color: white; }
+        .advisor-score .score-val { font-size: 2rem; font-weight: 800; line-height: 1; }
+        .advisor-score .score-lbl { font-size: 0.7rem; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.2rem; }
+        .advisor-score .score-grade { font-size: 2.2rem; font-weight: 800; }
+        .advisor-refresh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+        .advisor-empty { text-align:center; padding:2rem 1rem; color:var(--text-secondary); font-size:0.85rem; }
+        .advisor-empty .big-emoji { font-size: 2.5rem; display:block; margin-bottom:0.5rem; }
+
     </style>
 </head>
 <body>
@@ -332,11 +354,26 @@
             <div class="section-card"><h4><span class="emoji">🎯</span> Prospects by Interest</h4><div id="interestChart"></div></div>
         </div>
 
+
+        <!-- Tab: Advisor -->
+        <div class="tab-content" id="tabAdvisor">
+            <div class="section-card">
+                <div class="advisor-refresh">
+                    <h4 style="margin:0;"><span class="emoji">🧠</span> Real-Time Advisor</h4>
+                    <span class="advisor-pulse"><span class="dot"></span> Live</span>
+                </div>
+                <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.9rem;">Smart tips based on your current pipeline, follow-ups, and conversion data. Updates automatically.</p>
+                <div id="advisorScore"></div>
+                <div id="advisorTips"></div>
+            </div>
+        </div>
+
         <!-- Bottom Navigation -->
         <nav class="bottom-nav">
             <button class="nav-item active" data-tab="tabPlanner"><span class="nav-icon">📋</span> Planner</button>
             <button class="nav-item" data-tab="tabProspects" id="navProspects"><span class="nav-icon">👥</span> Prospects <span class="nav-badge" id="navReminderBadge" style="display:none;">0</span></button>
             <button class="nav-item" data-tab="tabAnalytics" id="navAnalytics"><span class="nav-icon">📊</span> Analytics</button>
+            <button class="nav-item" data-tab="tabAdvisor" id="navAdvisor"><span class="nav-icon">🧠</span> Advisor</button>
         </nav>
         <div class="toast" id="toast"></div>
     </div>
@@ -404,6 +441,7 @@
                 tabContents.forEach(tc => tc.classList.remove('active'));
                 document.getElementById(tabId).classList.add('active');
                 if (tabId === 'tabAnalytics') renderAnalytics();
+                if (tabId === 'tabAdvisor') renderAdvisor();
                 if (tabId === 'tabProspects') { renderFollowUps(); }
             });
         });
@@ -805,11 +843,148 @@
             alert('📞 Fresh Farms Poultry\n\n📋 0801 234 5678\n📱 0809 876 5432\n✉️ orders@freshfarmspoultry.com\n📍 Est. 1998');
         }
 
+
+        // ========== REAL-TIME ADVISOR ==========
+        function renderAdvisor() {
+            const tipsDiv = document.getElementById('advisorTips');
+            const scoreDiv = document.getElementById('advisorScore');
+            if (!tipsDiv || !scoreDiv) return;
+            const tips = [];
+            const now = new Date(); now.setHours(0,0,0,0);
+
+            const total = prospects.length;
+            const open = prospects.filter(p => p.status === 'open').length;
+            const won = prospects.filter(p => p.status === 'won').length;
+            const lost = prospects.filter(p => p.status === 'lost').length;
+            const hot = prospects.filter(p => p.interestLevel === 'hot' && p.status === 'open').length;
+            const warm = prospects.filter(p => p.interestLevel === 'warm' && p.status === 'open').length;
+            const cold = prospects.filter(p => p.interestLevel === 'cold' && p.status === 'open').length;
+            const decided = won + lost;
+            const winRate = decided > 0 ? Math.round((won/decided)*100) : 0;
+
+            const overdue = prospects.filter(p => p.status === 'open' && p.followUpDate && isOverdue(p.followUpDate));
+            const noFollowup = prospects.filter(p => p.status === 'open' && !p.followUpDate);
+            const stalled = prospects.filter(p => {
+                if (p.status !== 'open' || !p.followUpDate) return false;
+                const d = new Date(p.followUpDate); d.setHours(0,0,0,0);
+                const diff = Math.floor((now - d) / 86400000);
+                return diff >= 7;
+            });
+
+            // Source performance
+            const srcStats = {};
+            prospects.forEach(p => {
+                const s = p.source || 'Unknown';
+                if (!srcStats[s]) srcStats[s] = {won:0, lost:0, open:0};
+                srcStats[s][p.status]++;
+            });
+            let bestSrc = null, worstSrc = null;
+            Object.entries(srcStats).forEach(([s, st]) => {
+                const tot = st.won + st.lost;
+                const rate = tot > 0 ? st.won/tot : -1;
+                if (tot >= 2) {
+                    if (!bestSrc || rate > bestSrc.rate) bestSrc = {s, rate, tot};
+                    if (!worstSrc || rate < worstSrc.rate) worstSrc = {s, rate, tot};
+                }
+            });
+
+            // No data state
+            if (total === 0) {
+                scoreDiv.innerHTML = '';
+                tipsDiv.innerHTML = '<div class="advisor-empty"><span class="big-emoji">🌱</span>No prospects yet. Add your first prospect on the Prospects tab and the Advisor will analyse your pipeline live.</div>';
+                return;
+            }
+
+            // Build tips
+            // Urgent overdue follow-ups
+            if (overdue.length > 0) {
+                const names = overdue.slice(0,2).map(p => escapeHtml(p.name)).join(', ');
+                tips.push({type:'urgent', icon:'🚨', head:'Follow-ups overdue', body:`<strong>${overdue.length}</strong> prospect(s) need follow-up today. Start with: <strong>${names}</strong>${overdue.length>2?' and others.':'.'} Hot leads lose value fast — contact them now.`});
+            }
+
+            // Stalled prospects
+            if (stalled.length > 0) {
+                tips.push({type:'warn', icon:'⏳', head:'Stalled leads (7+ days)', body:`<strong>${stalled.length}</strong> open prospect(s) haven't been followed up in a week. Re-engage with a fresh offer or sample pack, or mark them lost to keep your pipeline clean.`});
+            }
+
+            // No follow-up date set
+            if (noFollowup.length > 0) {
+                tips.push({type:'info', icon:'📅', head:'Missing follow-up dates', body:`<strong>${noFollowup.length}</strong> open prospect(s) have no follow-up date. Set one so reminders can fire and nothing slips through.`});
+            }
+
+            // Hot leads priority
+            if (hot > 0) {
+                tips.push({type:'success', icon:'🔥', head: hot+' hot lead(s) ready', body:'You have <strong>'+hot+'</strong> hot prospect(s) ready to buy. Prioritise closing them within 24 hours — prepare sample packs and a clear kg price list.'});
+            }
+
+            // Win rate advice
+            if (decided >= 3) {
+                if (winRate >= 50) {
+                    tips.push({type:'success', icon:'🏆', head:'Strong win rate ('+winRate+'%)', body:`You're converting <strong>${winRate}%</strong> of decisions. Double down on what's working — ask recent wins for referrals.`});
+                } else {
+                    tips.push({type:'warn', icon:'📉', head:'Win rate needs work ('+winRate+'%)', body:`Only <strong>${winRate}%</strong> of decided deals are wins. Review lost prospects' responses for common objections (price, delivery) and adjust your pitch.`});
+                }
+            }
+
+            // Source performance
+            if (bestSrc) {
+                tips.push({type:'success', icon:'⭐', head:'Best source: '+escapeHtml(bestSrc.s), body:`<strong>${Math.round(bestSrc.rate*100)}%</strong> win rate from this source. Invest more budget and outreach here.`});
+            }
+            if (worstSrc && (!bestSrc || worstSrc.s !== bestSrc.s)) {
+                tips.push({type:'warn', icon:'⚠️', head:'Weakest source: '+escapeHtml(worstSrc.s), body:`Only <strong>${Math.round(worstSrc.rate*100)}%</strong> win rate. Reduce effort here or fix the messaging before spending more.`});
+            }
+
+            // Pipeline balance
+            if (open === 0) {
+                tips.push({type:'info', icon:'🕳️', head:'Empty pipeline', body:'No open prospects. Your future sales depend on a full pipeline — add new leads daily via markets, referrals, and social media.'});
+            } else if (warm === 0 && hot === 0 && cold > 0) {
+                tips.push({type:'info', icon:'❄️', head:'Pipeline is all cold', body:'All open prospects are cold. Warm them up with WhatsApp broadcasts, testimonials, and a limited-time offer.'});
+            }
+
+            // Activity nudge
+            const inactive = prospects.filter(p => p.status === 'open' && (!p.activities || p.activities.length === 0));
+            if (inactive.length > 0) {
+                tips.push({type:'info', icon:'📝', head:'Log your interactions', body:`<strong>${inactive.length}</strong> prospect(s) have no logged activity. Adding notes helps you track what's working and prepares context for follow-ups.`});
+            }
+
+            // Budget / CPL advice
+            const budgetVal = parseFloat(monthlyBudget.value) || 0;
+            if (budgetVal > 0 && total > 0) {
+                const cpl = Math.round(budgetVal / total);
+                tips.push({type:'info', icon:'💰', head:'Cost per lead: '+formatNaira(cpl), body:`At a ₦${budgetVal.toLocaleString('en-NG')} budget and ${total} prospects, you pay ~<strong>${formatNaira(cpl)}</strong> per lead. Lower this by sourcing more referrals and organic leads.`});
+            }
+
+            // Positive reinforcement
+            if (tips.length === 0 || (overdue.length === 0 && open > 0 && stalled.length === 0)) {
+                tips.push({type:'success', icon:'✅', head:'Pipeline is healthy', body:'No overdue or stalled follow-ups. Keep the momentum — add fresh leads and continue consistent outreach.'});
+            }
+
+            // Health score (0-100)
+            let score = 0;
+            score += Math.min(30, total * 5);                       // pipeline size
+            score += open > 0 ? 20 : 0;                              // active pipeline
+            score += overdue.length === 0 ? 25 : Math.max(0, 25 - overdue.length * 8);  // follow-up discipline
+            score += noFollowup.length === 0 ? 10 : Math.max(0, 10 - noFollowup.length * 2);
+            score += decided >= 3 ? (winRate >= 50 ? 15 : 8) : 0;     // conversion performance
+            score = Math.min(100, Math.max(0, score));
+            let grade = score >= 80 ? 'A' : score >= 65 ? 'B' : score >= 50 ? 'C' : score >= 35 ? 'D' : 'F';
+            let gradeEmoji = score >= 80 ? '🌟' : score >= 65 ? '👍' : score >= 50 ? '🙂' : score >= 35 ? '😟' : '🆘';
+            scoreDiv.innerHTML = `<div class="advisor-score"><div><div class="score-val">${score}/100</div><div class="score-lbl">Pipeline Health</div></div><div class="score-grade" title="${grade}">${gradeEmoji}</div></div>`;
+
+            // Render tips (urgent first)
+            const order = {urgent:0, warn:1, info:2, success:3};
+            tips.sort((a,b) => (order[a.type]||2) - (order[b.type]||2));
+            tipsDiv.innerHTML = tips.map(t => {
+                return `<div class="advisor-tip ${t.type}"><div class="tip-head"><span class="tip-icon">${t.icon}</span>${t.head}</div><div class="tip-body">${t.body}</div></div>`;
+            }).join('');
+        }
+
         // ========== INIT ==========
         loadProspects();
         updateKPIs();
         renderProspects();
         renderFollowUps();
+        renderAdvisor();
     </script>
 </body>
 </html>
