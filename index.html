@@ -90,7 +90,7 @@
         .kpi-card { flex: 0 0 auto; min-width: 100px; background: var(--card-bg); border-radius: var(--radius-sm); padding: 0.85rem 1rem; text-align: center; box-shadow: var(--shadow-sm); scroll-snap-align: start; border: 1px solid var(--border); transition: background 0.3s; }
         .kpi-card .kpi-val { font-size: 1.5rem; font-weight: 800; color: var(--primary); line-height: 1; letter-spacing: -0.5px; }
         .kpi-card .kpi-lbl { font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 0.3rem; }
-        .tab-content { padding: 0 1.25rem 5.5rem; display: none; }
+        .tab-content { padding: 0 1.25rem 1.5rem; display: none; }
         .tab-content.active { display: block; animation: fadeSlideIn 0.3s ease; }
         @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .section-card { background: var(--card-bg); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border); transition: background 0.3s, border 0.3s; }
@@ -167,12 +167,10 @@
         
         /* ===== FIXED BOTTOM NAV ===== */
         .bottom-nav {
-            position: fixed;
+            position: sticky;
             bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
             width: 100%;
-            max-width: 430px;
             background: var(--card-bg);
             display: flex;
             justify-content: space-around;
@@ -183,6 +181,7 @@
             padding: 0.5rem 0.25rem env(safe-area-inset-bottom, 0.5rem);
             transition: background 0.3s;
             gap: 0;
+            border-radius: 0 0 2rem 2rem;
         }
         .nav-item {
             flex: 1;
@@ -213,7 +212,7 @@
         .nav-badge {
             position: absolute;
             top: 2px;
-            right: calc(50% - 24px);
+            right: 18%;
             background: var(--danger);
             color: white;
             font-size: 0.55rem;
@@ -235,7 +234,7 @@
         .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1C1917; color: white; padding: 0.6rem 1.2rem; border-radius: 2rem; font-size: 0.8rem; font-weight: 600; box-shadow: var(--shadow-lg); z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         .toast.show { opacity: 1; }
         .dark-mode .toast { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
-        @media (min-width: 768px) { .bottom-nav { position: sticky; bottom: 0; border-radius: 0 0 2rem 2rem; } }
+        
     </style>
 </head>
 <body>
